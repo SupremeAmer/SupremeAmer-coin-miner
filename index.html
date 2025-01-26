@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mining Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .mining {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .mined-coins {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="mining">
+        <h1>Mining Page</h1>
+        <div class="mined-coins" id="minedCoins">Mined Coins: 0</div>
+        <button onclick="mineCoins()">Mine Coins</button>
+        <button onclick="window.location.href='index.html'">Back to Home</button>
+    </div>
+
+    <script>
+        let minedCoins = parseInt(localStorage.getItem('minedCoins')) || 0;
+
+        function mineCoins() {
+            // Simulate mining coins
+            const newCoins = Math.floor(Math.random() * 100) + 1; // Random coins between 1 and 100
+            minedCoins += newCoins;
+            localStorage.setItem('minedCoins', minedCoins);
+            updateMinedCoinsDisplay();
+        }
+
+        function updateMinedCoinsDisplay() {
+            document.getElementById('minedCoins').textContent = `Mined Coins: ${minedCoins}`;
+        }
+
+        // Update display on page load
+        window.onload = updateMinedCoinsDisplay;
+    </script>
+</body>
+</html>
