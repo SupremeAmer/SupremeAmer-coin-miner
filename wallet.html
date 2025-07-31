@@ -1,207 +1,146 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SupremeAmer Wallet</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@0xsequence/connect"></script>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <style>
-    .tab-active { border-bottom: 2px solid #3b82f6; color: white; }
-    .tab-inactive { color: #9ca3af; }
-  </style>
+  <script src="https://appwrite.io/js/3.0.1/appwrite.min.js"></script>
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="bg-gray-900 text-white">
+  <div id="app" class="min-h-screen flex flex-col items-center justify-center p-4">
+    <div id="auth-section" class="w-full max-w-sm text-center">
+      <h2 class="text-2xl font-bold mb-4">Login to SupremeAmer Wallet</h2>
+      <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 rounded bg-gray-800 border border-gray-600" />
+      <input id="password" type="password" placeholder="Password" class="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-600" />
+      <button onclick="loginUser()" class="w-full bg-green-500 p-2 rounded mb-2">Login</button>
+      <button onclick="registerUser()" class="w-full bg-blue-500 p-2 rounded">Register</button>
+    </div><div id="wallet-section" class="hidden w-full max-w-2xl">
+  <h2 class="text-xl font-semibold mb-4">Welcome, <span id="user-email"></span></h2>
+  <div class="flex space-x-4 mb-4">
+    <button onclick="switchTab('dashboard')" class="bg-gray-700 px-4 py-2 rounded">Dashboard</button>
+    <button onclick="switchTab('transfer')" class="bg-gray-700 px-4 py-2 rounded">Transfer</button>
+    <button onclick="switchTab('earn')" class="bg-gray-700 px-4 py-2 rounded">Earn</button>
+    <button onclick="window.location='affiliate.html'" class="bg-purple-600 px-4 py-2 rounded">Affiliate</button>
+  </div>
 
-  <!-- Top Bar -->
-  <div class="p-4 border-b border-gray-700">
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-lg font-bold">Main Wallet</h1>
-        <p class="text-sm text-gray-400" id="walletAddress">Connecting...</p>
-      </div>
-      <div class="text-right">
-        <h2 class="text-2xl font-bold" id="totalBalance">$0.00</h2>
-        <p class="text-sm text-gray-400">(0.0%)</p>
-      </div>
+  <div id="dashboard-tab" class="tab">
+    <div class="bg-gray-800 p-4 rounded mb-4">
+      <p>Wallet Address: <span id="wallet-address"></span></p>
+      <p>SupremeAmer Token Balance: <span id="token-balance">Loading...</span></p>
     </div>
   </div>
 
-  <!-- Action Buttons -->
-  <div class="flex justify-around py-4 bg-gray-800">
-    <button onclick="openSendModal()" class="text-center">
-      <div class="bg-gray-700 p-2 rounded-full mb-1">📤</div>
-      <p class="text-sm">Send</p>
-    </button>
-    <button class="text-center">
-      <div class="bg-gray-700 p-2 rounded-full mb-1">📥</div>
-      <p class="text-sm">Receive</p>
-    </button>
-    <button class="text-center">
-      <div class="bg-blue-600 p-2 rounded-full mb-1">⚡</div>
-      <p class="text-sm">Buy</p>
-    </button>
-    <button class="text-center">
-      <div class="bg-gray-700 p-2 rounded-full mb-1">💰</div>
-      <p class="text-sm">Sell</p>
-    </button>
-  </div>
-
-  <!-- Tabs -->
-  <div class="flex justify-around bg-gray-800 text-sm">
-    <button id="tab-crypto" class="py-2 px-4 tab-active" onclick="switchTab('crypto')">Crypto</button>
-    <button id="tab-nfts" class="py-2 px-4 tab-inactive" onclick="switchTab('nfts')">NFTs</button>
-  </div>
-
-  <!-- Filters -->
-  <div class="p-4 bg-gray-800 space-y-2">
-    <label class="flex items-center space-x-2">
-      <input type="checkbox" id="hideZero" class="form-checkbox text-blue-500" onchange="filterAssets()" />
-      <span>Hide tokens with 0 balance</span>
-    </label>
-    <label class="flex items-center space-x-2">
-      <input type="checkbox" id="hideLow" class="form-checkbox text-blue-500" onchange="filterAssets()" />
-      <span>Hide tokens &lt; $1</span>
-    </label>
-    <input type="text" id="searchToken" class="w-full p-2 rounded bg-gray-700" placeholder="Search token..." onkeyup="filterAssets()" />
-  </div>
-
-  <!-- Token List -->
-  <div id="tokenList" class="p-4 space-y-3"></div>
-
-  <!-- Bottom Tabs -->
-  <div class="fixed bottom-0 left-0 right-0 bg-gray-800 flex justify-around py-3 border-t border-gray-700">
-    <button class="text-center text-blue-400">🏠<br/><span class="text-xs">Home</span></button>
-    <button class="text-center text-gray-400">🔁<br/><span class="text-xs">Swap</span></button>
-    <button class="text-center text-gray-400">💸<br/><span class="text-xs">Earn</span></button>
-    <button class="text-center text-gray-400">📜<br/><span class="text-xs">History</span></button>
-  </div>
-
-  <!-- Send Modal (hidden initially) -->
-  <div id="sendModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden">
-    <div class="bg-gray-800 p-6 rounded-lg w-11/12 max-w-md">
-      <h2 class="text-xl font-bold mb-4">Send Token</h2>
-      <input id="recipient" class="w-full mb-2 p-2 rounded bg-gray-700" placeholder="Recipient Address" />
-      <input id="amount" class="w-full mb-2 p-2 rounded bg-gray-700" placeholder="Amount" type="number" />
-      <select id="tokenSelect" class="w-full mb-4 p-2 rounded bg-gray-700"></select>
-      <div class="flex justify-between">
-        <button onclick="closeSendModal()" class="px-4 py-2 bg-red-500 rounded">Cancel</button>
-        <button onclick="sendToken()" class="px-4 py-2 bg-blue-500 rounded">Send</button>
-      </div>
+  <div id="transfer-tab" class="tab hidden">
+    <div class="bg-gray-800 p-4 rounded">
+      <h3 class="text-lg font-semibold mb-2">Transfer Tokens</h3>
+      <input id="to-address" placeholder="Recipient Address" class="w-full p-2 mb-2 rounded bg-gray-700" />
+      <input id="amount" placeholder="Amount (SA Token)" class="w-full p-2 mb-2 rounded bg-gray-700" />
+      <button onclick="transferTokens()" class="bg-blue-500 px-4 py-2 rounded">Send with 1.5% Fee</button>
     </div>
   </div>
 
-  <script type="module">
-    import { SequenceConnect, createConfig } from 'https://cdn.skypack.dev/@0xsequence/connect'
+  <div id="earn-tab" class="tab hidden">
+    <div class="bg-gray-800 p-4 rounded">
+      <h3 class="text-lg font-semibold mb-2">SupremeAmer Mining</h3>
+      <p>Mining Speed: <span id="mining-speed">0.0001</span> SA/s</p>
+      <p>Upgrade to <strong>0.008 SA/s</strong> for $5 (100 days)</p>
+      <button onclick="upgradeMining()" class="bg-yellow-500 px-4 py-2 mt-2 rounded">Upgrade Mining Speed</button>
+      <p class="mt-4">Claim available every 8 hours. Mining pauses after 8h until claimed.</p>
+      <p>Mined: <span id="mined-amount">0</span> SA</p>
+      <button onclick="claimTokens()" class="bg-green-500 px-4 py-2 mt-2 rounded">Claim Mined Tokens</button>
+    </div>
+  </div>
+</div>
 
-    const config = createConfig('waas', {
-      projectAccessKey: "AQAAAAAAAKM0vdO9h2_Sse8p8CvvOLFBIm8",
-      waasConfigKey: "eyJwcm9qZWN0SWQiOjQxNzgwLCJycGNTZXJ2ZXIiOiJodHRwczovL3dhYXMuc2VxdWVuY2UuYXBwIn0=",
-      defaultChainId: 33139,
-      chainIds: [33139],
-      metaMask: true,
-      appName: "SupremeAmer Wallet",
-      enableConfirmationModal: true
-    })
+  </div>  <script>
+    const sequence = window.sequence;
+    const { ethers } = window.ethers;
+    const appwrite = new Appwrite();
+    appwrite.setEndpoint('https://cloud.appwrite.io/v1').setProject('YOUR_PROJECT_ID');
 
-    const wallet = await config.getWallet()
-    const provider = wallet.getProvider()
-    const address = await wallet.getAddress()
+    let miningStart = 0;
+    let miningSpeed = 0.0001;
+    let miningTimer;
+    let minedAmount = 0;
 
-    document.getElementById('walletAddress').textContent = address.slice(0, 6) + '...' + address.slice(-4)
-
-    const tokenListDiv = document.getElementById('tokenList')
-    const tokenSelect = document.getElementById('tokenSelect')
-
-    const balances = await wallet.getBalances()
-    let displayTokens = []
-
-    balances.tokenBalances.forEach(token => {
-      const decimals = token.decimals || 18
-      const amount = parseFloat(token.balance) / Math.pow(10, decimals)
-      const usdValue = amount * (token.price || 1) // fallback price 1
-
-      displayTokens.push({
-        name: token.name,
-        symbol: token.symbol,
-        logo: token.logoURI,
-        amount,
-        usdValue
-      })
-    })
-
-    displayTokens.sort((a, b) => b.usdValue - a.usdValue)
-    renderTokenList(displayTokens)
-
-    function renderTokenList(list) {
-      tokenListDiv.innerHTML = ''
-      tokenSelect.innerHTML = ''
-      let totalUsd = 0
-
-      list.forEach(token => {
-        totalUsd += token.usdValue
-
-        const el = document.createElement('div')
-        el.className = 'flex items-center justify-between border-b border-gray-700 py-2'
-        el.innerHTML = `
-          <div class="flex items-center space-x-2">
-            <img src="${token.logo || 'https://via.placeholder.com/32'}" class="w-8 h-8 rounded-full" />
-            <div>
-              <h4 class="font-semibold">${token.symbol}</h4>
-              <p class="text-sm text-green-400">$${token.usdValue.toFixed(2)}</p>
-            </div>
-          </div>
-          <div class="text-right">
-            <p class="text-sm text-gray-300">${token.amount.toFixed(4)}</p>
-          </div>
-        `
-        tokenListDiv.appendChild(el)
-
-        const opt = document.createElement('option')
-        opt.value = token.symbol
-        opt.textContent = token.symbol
-        tokenSelect.appendChild(opt)
-      })
-
-      document.getElementById('totalBalance').textContent = `$${totalUsd.toFixed(2)}`
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(div => div.classList.add('hidden'));
+      document.getElementById(`${tab}-tab`).classList.remove('hidden');
     }
 
-    window.filterAssets = function () {
-      const hideZero = document.getElementById('hideZero').checked
-      const hideLow = document.getElementById('hideLow').checked
-      const search = document.getElementById('searchToken').value.toLowerCase()
-
-      const filtered = displayTokens.filter(t => {
-        if (hideZero && t.amount <= 0) return false
-        if (hideLow && t.usdValue < 1) return false
-        if (search && !t.symbol.toLowerCase().includes(search)) return false
-        return true
-      })
-
-      renderTokenList(filtered)
+    async function registerUser() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await appwrite.account.create("unique()", email, password);
+        alert('Registered! Please login.');
+      } catch (error) {
+        alert('Registration failed: ' + error.message);
+      }
     }
 
-    window.openSendModal = () => document.getElementById('sendModal').classList.remove('hidden')
-    window.closeSendModal = () => document.getElementById('sendModal').classList.add('hidden')
-
-    window.sendToken = async function () {
-      const recipient = document.getElementById('recipient').value
-      const amount = document.getElementById('amount').value
-      const symbol = document.getElementById('tokenSelect').value
-
-      const token = displayTokens.find(t => t.symbol === symbol)
-      const decimals = 18
-      const value = ethers.utils.parseUnits(amount, decimals)
-
-      alert(`Sending ${amount} ${symbol} to ${recipient}... (you can now code this call with ERC20.send)`)
-
-      closeSendModal()
+    async function loginUser() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await appwrite.account.createEmailSession(email, password);
+        const user = await appwrite.account.get();
+        document.getElementById('user-email').textContent = user.email;
+        document.getElementById('auth-section').classList.add('hidden');
+        document.getElementById('wallet-section').classList.remove('hidden');
+        connectWallet();
+        startMining();
+      } catch (error) {
+        alert('Login failed: ' + error.message);
+      }
     }
 
-    window.switchTab = (tab) => {
-      document.getElementById('tab-crypto').className = tab === 'crypto' ? 'py-2 px-4 tab-active' : 'py-2 px-4 tab-inactive'
-      document.getElementById('tab-nfts').className = tab === 'nfts' ? 'py-2 px-4 tab-active' : 'py-2 px-4 tab-inactive'
+    async function connectWallet() {
+      const connect = new sequence.SequenceConnect();
+      const wallet = await connect.connect({ app: "SupremeAmer Wallet" });
+      const walletAddress = wallet.session?.accountAddress || "Not connected";
+      document.getElementById("wallet-address").textContent = walletAddress;
+      loadTokenBalance(walletAddress);
     }
-  </script>
-</body>
+
+    async function loadTokenBalance(address) {
+      const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+      const tokenAddress = "0x06dB6BA51c18348A4C47465CAB643E62038969dd";
+      const abi = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"];
+      const contract = new ethers.Contract(tokenAddress, abi, provider);
+      const balance = await contract.balanceOf(address);
+      const decimals = await contract.decimals();
+      document.getElementById("token-balance").textContent = (balance / (10 ** decimals)).toFixed(6);
+    }
+
+    async function transferTokens() {
+      alert("Transfer functionality with 1.5% fee will be added with blockchain signing.");
+    }
+
+    function startMining() {
+      miningStart = Date.now();
+      miningTimer = setInterval(() => {
+        if ((Date.now() - miningStart) >= 8 * 3600000) return; // pause after 8 hrs
+        minedAmount += miningSpeed;
+        document.getElementById("mined-amount").textContent = minedAmount.toFixed(6);
+      }, 1000);
+    }
+
+    function claimTokens() {
+      miningStart = Date.now();
+      minedAmount = 0;
+      document.getElementById("mined-amount").textContent = "0";
+    }
+
+    function upgradeMining() {
+      miningSpeed = 0.008;
+      document.getElementById("mining-speed").textContent = miningSpeed;
+      setTimeout(() => {
+        miningSpeed = 0.0001;
+        document.getElementById("mining-speed").textContent = miningSpeed;
+      }, 100 * 24 * 3600000); // 100 days
+    }
+  </script></body>
 </html>
