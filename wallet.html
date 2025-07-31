@@ -1,146 +1,131 @@
 <!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SupremeAmer Wallet</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@0xsequence/connect"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="https://appwrite.io/js/3.0.1/appwrite.min.js"></script>
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@0xsequence/connect@latest/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/@appwrite/sdk@13.0.1/dist/appwrite.min.js"></script>
 </head>
-<body class="bg-gray-900 text-white">
-  <div id="app" class="min-h-screen flex flex-col items-center justify-center p-4">
-    <div id="auth-section" class="w-full max-w-sm text-center">
-      <h2 class="text-2xl font-bold mb-4">Login to SupremeAmer Wallet</h2>
-      <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 rounded bg-gray-800 border border-gray-600" />
-      <input id="password" type="password" placeholder="Password" class="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-600" />
-      <button onclick="loginUser()" class="w-full bg-green-500 p-2 rounded mb-2">Login</button>
-      <button onclick="registerUser()" class="w-full bg-blue-500 p-2 rounded">Register</button>
-    </div><div id="wallet-section" class="hidden w-full max-w-2xl">
-  <h2 class="text-xl font-semibold mb-4">Welcome, <span id="user-email"></span></h2>
-  <div class="flex space-x-4 mb-4">
-    <button onclick="switchTab('dashboard')" class="bg-gray-700 px-4 py-2 rounded">Dashboard</button>
-    <button onclick="switchTab('transfer')" class="bg-gray-700 px-4 py-2 rounded">Transfer</button>
-    <button onclick="switchTab('earn')" class="bg-gray-700 px-4 py-2 rounded">Earn</button>
-    <button onclick="window.location='affiliate.html'" class="bg-purple-600 px-4 py-2 rounded">Affiliate</button>
-  </div>
+<body class="bg-gray-900 text-white font-sans">
+  <div id="app" class="p-4 max-w-md mx-auto">
+    <h1 class="text-2xl font-bold mb-4">SupremeAmer Wallet</h1>
+    <div id="auth-section" class="mb-4">
+      <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 text-black" />
+      <input id="password" type="password" placeholder="Password" class="w-full p-2 mb-2 text-black" />
+      <button onclick="registerUser()" class="bg-green-600 px-4 py-2 rounded">Register</button>
+      <button onclick="loginUser()" class="bg-blue-600 px-4 py-2 rounded ml-2">Login</button>
+    </div><div id="wallet-section" class="hidden">
+  <p><strong>Logged in as:</strong> <span id="user-email"></span></p>
+  <p><strong>Wallet:</strong> <span id="wallet-address"></span></p>
+  <p><strong>SupremeAmer Balance:</strong> <span id="sa-balance">Loading...</span></p>
 
-  <div id="dashboard-tab" class="tab">
-    <div class="bg-gray-800 p-4 rounded mb-4">
-      <p>Wallet Address: <span id="wallet-address"></span></p>
-      <p>SupremeAmer Token Balance: <span id="token-balance">Loading...</span></p>
-    </div>
-  </div>
+  <h2 class="text-xl mt-6">Transfer Tokens</h2>
+  <input id="to-address" placeholder="Recipient Address" class="w-full p-2 mb-2 text-black" />
+  <input id="amount" placeholder="Amount" class="w-full p-2 mb-2 text-black" />
+  <button onclick="transferToken()" class="bg-yellow-500 px-4 py-2 rounded">Send</button>
 
-  <div id="transfer-tab" class="tab hidden">
-    <div class="bg-gray-800 p-4 rounded">
-      <h3 class="text-lg font-semibold mb-2">Transfer Tokens</h3>
-      <input id="to-address" placeholder="Recipient Address" class="w-full p-2 mb-2 rounded bg-gray-700" />
-      <input id="amount" placeholder="Amount (SA Token)" class="w-full p-2 mb-2 rounded bg-gray-700" />
-      <button onclick="transferTokens()" class="bg-blue-500 px-4 py-2 rounded">Send with 1.5% Fee</button>
-    </div>
-  </div>
+  <h2 class="text-xl mt-6">Mining</h2>
+  <p>Current Rate: <span id="mining-rate">0.0001</span> SupremeAmer/sec</p>
+  <p>Upgrade: $5 = 0.008/sec for 100 days</p>
+  <button onclick="startMining()" class="bg-green-700 px-4 py-2 rounded">Start Mining</button>
+  <button onclick="claimTokens()" class="bg-purple-700 px-4 py-2 rounded mt-2">Claim</button>
+  <p>Mined: <span id="mined-amount">0.0000</span> SA</p>
 
-  <div id="earn-tab" class="tab hidden">
-    <div class="bg-gray-800 p-4 rounded">
-      <h3 class="text-lg font-semibold mb-2">SupremeAmer Mining</h3>
-      <p>Mining Speed: <span id="mining-speed">0.0001</span> SA/s</p>
-      <p>Upgrade to <strong>0.008 SA/s</strong> for $5 (100 days)</p>
-      <button onclick="upgradeMining()" class="bg-yellow-500 px-4 py-2 mt-2 rounded">Upgrade Mining Speed</button>
-      <p class="mt-4">Claim available every 8 hours. Mining pauses after 8h until claimed.</p>
-      <p>Mined: <span id="mined-amount">0</span> SA</p>
-      <button onclick="claimTokens()" class="bg-green-500 px-4 py-2 mt-2 rounded">Claim Mined Tokens</button>
-    </div>
-  </div>
+  <h2 class="text-xl mt-6">Affiliate</h2>
+  <p>Share this link: <span id="ref-link"></span></p>
 </div>
 
   </div>  <script>
-    const sequence = window.sequence;
-    const { ethers } = window.ethers;
     const appwrite = new Appwrite();
     appwrite.setEndpoint('https://fra.cloud.appwrite.io/v1').setProject('6839d9640019316a160d');
+    const account = appwrite.account;
 
-    let miningStart = 0;
-    let miningSpeed = 0.0001;
-    let miningTimer;
+    const sequence = window.sequence;
+    let provider, signer, walletAddress;
+    let miningRate = 0.0001;
     let minedAmount = 0;
-
-    function switchTab(tab) {
-      document.querySelectorAll('.tab').forEach(div => div.classList.add('hidden'));
-      document.getElementById(`${tab}-tab`).classList.remove('hidden');
-    }
+    let miningStartTime;
 
     async function registerUser() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      try {
-        await appwrite.account.create("unique()", email, password);
-        alert('Registered! Please login.');
-      } catch (error) {
-        alert('Registration failed: ' + error.message);
-      }
+      await appwrite.account.create('unique()', email, password);
+      alert('Registered! Now login.');
     }
 
     async function loginUser() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      try {
-        await appwrite.account.createEmailSession(email, password);
-        const user = await appwrite.account.get();
-        document.getElementById('user-email').textContent = user.email;
-        document.getElementById('auth-section').classList.add('hidden');
-        document.getElementById('wallet-section').classList.remove('hidden');
-        connectWallet();
-        startMining();
-      } catch (error) {
-        alert('Login failed: ' + error.message);
-      }
+      await appwrite.account.createEmailSession(email, password);
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('wallet-section').classList.remove('hidden');
+      document.getElementById('user-email').textContent = email;
+      await connectWallet();
     }
 
     async function connectWallet() {
       const connect = new sequence.SequenceConnect();
-      const wallet = await connect.connect({ app: "SupremeAmer Wallet" });
-      const walletAddress = wallet.session?.accountAddress || "Not connected";
-      document.getElementById("wallet-address").textContent = walletAddress;
-      loadTokenBalance(walletAddress);
+      await connect.openWallet({ app: 'SupremeAmer Wallet' });
+      const wallet = connect.getWallet();
+      walletAddress = wallet.address;
+      document.getElementById('wallet-address').textContent = walletAddress;
+      provider = new ethers.providers.Web3Provider(wallet.getProvider());
+      signer = provider.getSigner();
+      loadBalance();
     }
 
-    async function loadTokenBalance(address) {
-      const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
-      const tokenAddress = "0x06dB6BA51c18348A4C47465CAB643E62038969dd";
-      const abi = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"];
+    async function loadBalance() {
+      const tokenAddress = '0x06dB6BA51c18348A4C47465CAB643E62038969dd';
+      const abi = ["function balanceOf(address) view returns (uint256)", "function transfer(address to, uint256 amount) returns (bool)"];
       const contract = new ethers.Contract(tokenAddress, abi, provider);
-      const balance = await contract.balanceOf(address);
-      const decimals = await contract.decimals();
-      document.getElementById("token-balance").textContent = (balance / (10 ** decimals)).toFixed(6);
+      const balance = await contract.balanceOf(walletAddress);
+      document.getElementById('sa-balance').textContent = ethers.utils.formatUnits(balance, 18);
     }
 
-    async function transferTokens() {
-      alert("Transfer functionality with 1.5% fee will be added with blockchain signing.");
+    async function transferToken() {
+      const to = document.getElementById('to-address').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const fee = amount * 0.015;
+      const sendAmount = amount - fee;
+      const contract = new ethers.Contract('0x06dB6BA51c18348A4C47465CAB643E62038969dd', ["function transfer(address to, uint256 amount) returns (bool)"], signer);
+      await contract.transfer(to, ethers.utils.parseUnits(sendAmount.toString(), 18));
+      await contract.transfer('0xbaf120fF881eFE99008413696f41204F8c8FD889', ethers.utils.parseUnits(fee.toString(), 18));
+      alert('Transfer complete');
+      loadBalance();
     }
 
     function startMining() {
-      miningStart = Date.now();
-      miningTimer = setInterval(() => {
-        if ((Date.now() - miningStart) >= 8 * 3600000) return; // pause after 8 hrs
-        minedAmount += miningSpeed;
-        document.getElementById("mined-amount").textContent = minedAmount.toFixed(6);
+      miningStartTime = Date.now();
+      minedAmount = 0;
+      updateMining();
+    }
+
+    function updateMining() {
+      setInterval(() => {
+        if (!miningStartTime) return;
+        const elapsed = (Date.now() - miningStartTime) / 1000;
+        if (elapsed >= 8 * 3600) return;
+        minedAmount = elapsed * miningRate;
+        document.getElementById('mined-amount').textContent = minedAmount.toFixed(4);
       }, 1000);
     }
 
-    function claimTokens() {
-      miningStart = Date.now();
+    async function claimTokens() {
+      const fee = minedAmount * 0.06;
+      const finalAmount = minedAmount - fee;
+      const contract = new ethers.Contract('0x06dB6BA51c18348A4C47465CAB643E62038969dd', ["function transfer(address to, uint256 amount) returns (bool)"], signer);
+      await contract.transfer(walletAddress, ethers.utils.parseUnits(finalAmount.toString(), 18));
+      await contract.transfer('0xbaf120fF881eFE99008413696f41204F8c8FD889', ethers.utils.parseUnits(fee.toString(), 18));
+      miningStartTime = null;
       minedAmount = 0;
-      document.getElementById("mined-amount").textContent = "0";
-    }
-
-    function upgradeMining() {
-      miningSpeed = 0.008;
-      document.getElementById("mining-speed").textContent = miningSpeed;
-      setTimeout(() => {
-        miningSpeed = 0.0001;
-        document.getElementById("mining-speed").textContent = miningSpeed;
-      }, 100 * 24 * 3600000); // 100 days
+      alert('Mined tokens claimed!');
+      loadBalance();
     }
   </script></body>
 </html>
+
+
+
+    
