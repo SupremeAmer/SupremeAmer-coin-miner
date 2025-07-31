@@ -1,61 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mining Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-        }
-        .mining {
-            text-align: center;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .mined-coins {
-            font-size: 2em;
-            margin: 20px 0;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 1em;
-            cursor: pointer;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupremeAmer Wallet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@0xsequence/connect@latest/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/@appwrite/sdk@13.0.1/dist/appwrite.min.js"></script>
 </head>
-<body>
-    <div class="mining">
-        <h1>Mining Page</h1>
-        <div class="mined-coins" id="minedCoins">Mined Coins: 0</div>
-        <button onclick="mineCoins()">Mine Coins</button>
-        <button onclick="window.location.href='wallet.html'">Back to Home</button>
+<body class="bg-gray-900 text-white font-sans">
+  <div id="app" class="p-4 max-w-md mx-auto">
+    <h1 class="text-2xl font-bold mb-4">SupremeAmer Wallet</h1>
+    <div id="auth-section" class="mb-4">
+      <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 text-black" />
+      <input id="password" type="password" placeholder="Password" class="w-full p-2 mb-2 text-black" />
+      <button onclick="registerUser()" class="bg-green-600 px-4 py-2 rounded">Register</button>
+      <button onclick="loginUser()" class="bg-blue-600 px-4 py-2 rounded ml-2">Login</button>
     </div>
 
-    <script>
-        let minedCoins = parseInt(localStorage.getItem('minedCoins')) || 0;
+    <div id="wallet-section" class="hidden">
+      <p><strong>Logged in as:</strong> <span id="user-email"></span></p>
+      <p><strong>Wallet:</strong> <span id="wallet-address"></span></p>
+      <p><strong>SupremeAmer Balance:</strong> <span id="sa-balance">Loading...</span></p>
 
-        function mineCoins() {
-            // Simulate mining coins
-            const newCoins = Math.floor(Math.random() * 100) + 1; // Random coins between 1 and 100
-            minedCoins += newCoins;
-            localStorage.setItem('minedCoins', minedCoins);
-            updateMinedCoinsDisplay();
-        }
+      <h2 class="text-xl mt-6">Transfer Tokens</h2>
+      <input id="to-address" placeholder="Recipient Address" class="w-full p-2 mb-2 text-black" />
+      <input id="amount" placeholder="Amount" class="w-full p-2 mb-2 text-black" />
+      <button onclick="transferToken()" class="bg-yellow-500 px-4 py-2 rounded">Send</button>
 
-        function updateMinedCoinsDisplay() {
-            document.getElementById('minedCoins').textContent = `Mined Coins: ${minedCoins}`;
-        }
+      <h2 class="text-xl mt-6">Mining</h2>
+      <p>Current Rate: <span id="mining-rate">0.0001</span> SupremeAmer/sec</p>
+      <p>Upgrade: $5 = 0.008/sec for 100 days</p>
+      <button onclick="startMining()" class="bg-green-700 px-4 py-2 rounded">Start Mining</button>
+      <button onclick="claimTokens()" class="bg-purple-700 px-4 py-2 rounded mt-2">Claim</button>
+      <p>Mined: <span id="mined-amount">0.0000</span> SA</p>
 
-        // Update display on page load
-        window.onload = updateMinedCoinsDisplay;
-    </script>
+      <h2 class="text-xl mt-6">Affiliate</h2>
+      <p>Share this link: <span id="ref-link">https://supremeamer.com/affiliate?ref=<b id="user-id"></b></span></p>
+    </div>
+  </div>
+
+  <script>
+    const appwrite = new Appwrite();
+    appwrite.setEndpoint('https://fra.cloud.appwrite.io/v1').setProject('6839d9640019316a160d');
+    const account = appwrite.account;
+
+    const sequence = window.sequence;
+    let provider, signer, walletAddress;
+    let miningRate = 0.0001;
+    let minedAmount = 0;
+    let miningStartTime;
+    let miningInterval;
+
+    async function registerUser() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      await appwrite.account.create('unique()', email, password);
+      alert('Registered! Now login.');
+    }
+
+    async function loginUser() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      await appwrite.account.createEmailSession(email, password);
+      const user = await account.get();
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('wallet-section').classList.remove('hidden');
+      document.getElementById('user-email').textContent = user.email;
+      document.getElementById('user-id').textContent = user.$id;
+      connectWallet();
+    }
+
+    async function connectWallet() {
+      const connect = new sequence.SequenceConnect();
+      await connect.openWallet({ app: 'SupremeAmer Wallet' });
+      const wallet = connect.getWallet();
+      walletAddress = wallet.address;
+      document.getElementById('wallet-address').textContent = walletAddress;
+      provider = new ethers.providers.Web3Provider(wallet.getProvider());
+      signer = provider.getSigner();
+      loadBalance();
+    }
+
+    async function loadBalance() {
+      const tokenAddress = '0x06dB6BA51c18348A4C47465CAB643E62038969dd';
+      const abi = ["function balanceOf(address) view returns (uint256)", "function transfer(address to, uint256 amount) returns (bool)"];
+      const contract = new ethers.Contract(tokenAddress, abi, provider);
+      const balance = await contract.balanceOf(walletAddress);
+      document.getElementById('sa-balance').textContent = ethers.utils.formatUnits(balance, 18);
+    }
+
+    async function transferToken() {
+      const to = document.getElementById('to-address').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const fee = amount * 0.015;
+      const sendAmount = amount - fee;
+      const contract = new ethers.Contract('0x06dB6BA51c18348A4C47465CAB643E62038969dd', ["function transfer(address to, uint256 amount) returns (bool)"], signer);
+      await contract.transfer(to, ethers.utils.parseUnits(sendAmount.toString(), 18));
+      await contract.transfer('0xbaf120fF881eFE99008413696f41204F8c8FD889', ethers.utils.parseUnits(fee.toString(), 18));
+      alert('Transfer complete');
+      loadBalance();
+    }
+
+    function startMining() {
+      miningStartTime = Date.now();
+      minedAmount = 0;
+      if (miningInterval) clearInterval(miningInterval);
+      miningInterval = setInterval(() => {
+        const elapsed = (Date.now() - miningStartTime) / 1000;
+        if (elapsed >= 8 * 3600) return;
+        minedAmount = elapsed * miningRate;
+        document.getElementById('mined-amount').textContent = minedAmount.toFixed(4);
+      }, 1000);
+    }
+
+    async function claimTokens() {
+      const fee = minedAmount * 0.06;
+      const finalAmount = minedAmount - fee;
+      const contract = new ethers.Contract('0x06dB6BA51c18348A4C47465CAB643E62038969dd', ["function transfer(address to, uint256 amount) returns (bool)"], signer);
+      await contract.transfer(walletAddress, ethers.utils.parseUnits(finalAmount.toString(), 18));
+      await contract.transfer('0xbaf120fF881eFE99008413696f41204F8c8FD889', ethers.utils.parseUnits(fee.toString(), 18));
+      minedAmount = 0;
+      miningStartTime = null;
+      clearInterval(miningInterval);
+      document.getElementById('mined-amount').textContent = '0.0000';
+      alert('Mined tokens claimed!');
+      loadBalance();
+    }
+  </script>
 </body>
 </html>
